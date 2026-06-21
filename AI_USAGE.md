@@ -52,9 +52,33 @@ encontrar y corregir bugs reales antes de entregar, por ejemplo:
   seguridad conocida; se detectó por el warning de `npm install` y se
   actualizó a la última versión parcheada de la misma rama.
 
-**4. Documentación.** Este `README.md` y este mismo archivo se escribieron
+**3. Documentación.** Este `README.md` y este mismo archivo se escribieron
 con Claude, pero describiendo decisiones y resultados verificados
 realmente (no descripciones genéricas de "buenas prácticas").
+
+**4. Debugging real durante la puesta en marcha en mi máquina.** Después de
+la primera versión funcional, hice una ronda de prueba en mi computadora
+(Windows, Python 3.13) que sacó a la luz varios problemas que no aparecían
++en el entorno de desarrollo original de Claude:
+- `numpy==1.26.4` y `scikit-learn==1.5.2` no tienen instalador precompilado
+  para Python 3.13 en Windows, así que `pip` intentaba compilarlos desde
+  código fuente y fallaba. Se cambió a rangos de versión (`numpy>=2.1`,
+  `scikit-learn>=1.6`, esta última con soporte oficial para 3.13).
+- Con `uvicorn --reload`, importar tickets reescribe `data/tickets.db`, lo
+  que el vigilante de archivos de uvicorn detecta como un cambio y reinicia
+  el servidor justo cuando estaba probando, dejando la página "cargando"
+  indefinidamente. Se documentó en el README usar `--reload` solo mientras
+  se edita código, no para probar.
+- El dashboard abierto en `127.0.0.1:3000` no podía llamar al backend
+  configurado para aceptar solo `localhost:3000` (CORS distingue ambos como
+  orígenes distintos). Se amplió el default de `CORS_ORIGINS`.
+- Se agregó logging del cuerpo de la respuesta de error de Gemini (no solo
+  el código HTTP) para diagnosticar fallos de `/ask` con mi key real sin
+  tener que adivinar.
+- Una vez resuelto lo anterior, confirmé **con mi propia API key real de
+  Gemini** que la importación completa (400 tickets) y varias preguntas a
+  `/ask` funcionan correctamente con el LLM real, no solo en modo mock.
+
 
 ## Qué se validó manualmente (no solo "Claude dijo que funciona")
 
@@ -64,11 +88,13 @@ realmente (no descripciones genéricas de "buenas prácticas").
 - `GET /dashboard/summary`: se revisaron los números devueltos (totales,
   distribución por prioridad/categoría/equipo, satisfacción y tiempo de
   resolución promedio) para confirmar que tenían sentido frente al dataset.
-- `POST /ask` con las dos preguntas de ejemplo del enunciado de la prueba.
+- `POST /ask` con las dos preguntas de ejemplo del enunciado de la prueba,
+  primero en modo mock y después con la API key real de Gemini.
 - `npm run build` del frontend sin errores de tipos, y las 3 rutas (`/`,
   `/tickets`, `/assistant`) respondiendo `200`.
-- El proveedor real de Gemini (`GeminiLLMProvider`) con una API key inválida,
-  para confirmar que un fallo de red/autenticación no tumba la API.
+- El flujo completo (clonar, instalar, levantar, importar, probar `/ask`)
+  corrido de principio a fin en mi propia máquina (Windows), no solo en el
+  entorno donde se escribió el código.
 
 ## Configuración de agentes / prompts reutilizables
 

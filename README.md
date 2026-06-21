@@ -43,6 +43,14 @@ pip install -r requirements.txt
 cp .env.example .env              # ajusta si quieres usar Gemini real
 uvicorn app.main:app --reload --port 8000
 ```
+> ⚠️ **Sobre `--reload`:** úsalo solo mientras editas código. El recargador
+> de uvicorn vigila todos los archivos de la carpeta, incluida la base
+> SQLite (`data/tickets.db`). Como esa base se reescribe en cada
+> `POST /tickets/import`, eso puede disparar un reinicio del servidor justo
+> cuando estás probando, y la petición se queda "cargando" indefinidamente.
+> Para probar el dashboard tal cual, corre sin `--reload`:
+> `uvicorn app.main:app --port 8000`.
+
 
 **Frontend** (en otra terminal):
 
@@ -63,6 +71,8 @@ Frontend en http://localhost:3000, backend en http://localhost:8000.
    saldrán vacíos: dale clic a **"Reimportar tickets"** (esto llama a
    `POST /tickets/import`, que lee `backend/dataset/tickets.csv`, limpia los
    datos, los enriquece con IA y los guarda).
+   datos, los enriquece con IA y los guarda). El botón **"Borrar datos"**
+   limpia todo (`DELETE /tickets`) si quieres volver a empezar de cero.
 2. Ve a la pestaña **Tickets**: tabla completa con filtros por categoría,
    prioridad, estado y producto. Clic en una fila para ver el detalle.
 3. Ve a **Asistente IA** y prueba las preguntas sugeridas, por ejemplo:
@@ -92,6 +102,7 @@ curl -X POST http://localhost:8000/ask \
 | POST | `/tickets/import` | Lee `dataset/tickets.csv`, limpia, enriquece con IA y persiste (reemplaza los datos existentes). |
 | GET | `/tickets` | Lista tickets enriquecidos. Filtros: `category`, `priority`, `status`, `team`, `product`. Paginación: `limit`, `offset`. |
 | GET | `/tickets/{id}` | Detalle de un ticket (id interno, no el `Ticket ID` original). |
+| DELETE | `/tickets` | Borra todos los tickets importados (usado por el botón "Borrar datos" del dashboard). |
 | GET | `/dashboard/summary` | KPIs y agregados (totales, por prioridad, categoría, equipo, sentimiento, top productos, promedios de satisfacción y resolución). |
 | POST | `/ask` | `{"question": "..."}` → RAG sobre tickets + base de conocimiento. |
 
@@ -108,7 +119,7 @@ curl -X POST http://localhost:8000/ask \
 | `GEMINI_API_KEY` | _(vacío)_ | Requerida si usas `gemini` en cualquiera de los dos anteriores. Se obtiene en https://aistudio.google.com/apikey |
 | `GEMINI_MODEL` | `gemini-3.5-flash` | Modelo de chat de Gemini. |
 | `GEMINI_EMBEDDING_MODEL` | `gemini-embedding-001` | Modelo de embeddings de Gemini. |
-| `CORS_ORIGINS` | `http://localhost:3000` | Orígenes permitidos, separados por coma. |
+| `CORS_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Orígenes permitidos, separados por coma. Incluye ambas variantes porque el navegador trata `localhost` y `127.0.0.1` como orígenes distintos para CORS. |
 
 Si `LLM_PROVIDER=gemini` pero no hay `GEMINI_API_KEY`, el sistema cae
 automáticamente a `mock` (ver `app/core/config.py`, propiedad
@@ -194,11 +205,13 @@ trazabilidad de qué fue generado por IA (columna `ai_provider_used`).
 - El proveedor **mock** de sentimiento/urgencia usa una lista corta de
   palabras clave en inglés/español; detecta poco sentimiento negativo en
   este dataset en particular (textos repetitivos y poco expresivos). Con
-  Gemini real (`LLM_PROVIDER=gemini`) la clasificación es mucho más rica —
-  está probado que el provider real llega correctamente al endpoint de
-  Google y maneja errores sin romper la importación (ver tests manuales
-  abajo), aunque no se pudo correr una importación completa con key real
-  durante el desarrollo en este entorno.
+  `LLM_PROVIDER=gemini` la clasificación es más rica — **probado con una API
+  key real**, incluyendo importación completa de los 400 tickets y
+  preguntas reales a `/ask`.
+- `numpy`/`scikit-learn` se dejaron con rango de versión (`>=2.1`/`>=1.6`) en
+  vez de versión fija, porque versiones más viejas no traen instalador
+  precompilado para Python 3.13 en Windows y `pip` intenta compilarlas desde
+  el código fuente (falla sin herramientas de compilación de C++).
 - `POST /tickets/import` reemplaza todos los tickets en cada corrida (no hay
   importación incremental). Para un dataset que crece todos los días, lo
   correcto sería un upsert por `Ticket ID`.
