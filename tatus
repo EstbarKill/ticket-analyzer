@@ -1,0 +1,3 @@
+[33mc1f372e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Actualizar README y AI_USAGE con el estado final: Gemini real validado, fix de --reload/SQLite, fix de CORS, fix de numpy en Python 3.13
+[33me02c034[m feat: complete AI support ticket analyzer with RAG, metrics, tickets API, structured logging and production-ready error handling
+[33m69d3707[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmaster[m[33m)[m AI Support Ticket Analyzer: backend FastAPI + frontend Next.js, RAG, dashboard

@@ -4,13 +4,16 @@ CSV -> validación/limpieza -> enriquecimiento IA -> persistencia.
 """
 import csv
 import logging
+import time
 from pathlib import Path
+
 
 from sqlalchemy.orm import Session
 
 from app.repositories.ticket_repository import TicketRepository
 from app.services.data_cleaning import clean_dataset
 from app.services.providers.base import LLMProvider
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +32,24 @@ class IngestionService:
         imported = 0
         enrichment_errors = 0
         orm_tickets = []
-
+        settings = get_settings()
         for ticket in cleaned:
+            if settings.enable_llm_enrichment:
+                enrichment = self._llm.enrich_ticket(
+                    subject=ticket.ticket_subject or "",
+                    description=ticket.ticket_description or "",
+                    ticket_type=ticket.ticket_type or "",
+                    original_priority=ticket.ticket_priority,
+                )
+            else:
+                enrichment = {
+                    "ai_category": ticket.ticket_type or "Product inquiry",
+                    "ai_priority": ticket.ticket_priority or "Medium",
+                    "ai_summary": ticket.ticket_subject or "",
+                    "ai_sentiment": "Neutral",
+                    "ai_urgency": "Media",
+                    "ai_assigned_team": "Soporte Técnico",
+                }
             if ticket.is_duplicate or ticket.source_ticket_id is None:
                 continue
             try:
@@ -40,6 +59,7 @@ class IngestionService:
                     ticket_type=ticket.ticket_type or "",
                     original_priority=ticket.ticket_priority,
                 )
+                time.sleep(1)
             except Exception as exc:  # noqa: BLE001 - el enriquecimiento nunca debe tumbar la importación
                 logger.warning("Error enriqueciendo ticket %s: %s", ticket.source_ticket_id, exc)
                 enrichment_errors += 1
@@ -49,7 +69,7 @@ class IngestionService:
                     "ai_summary": "No se pudo generar el resumen.",
                     "ai_sentiment": "Neutral",
                     "ai_urgency": "Media",
-                    "ai_assigned_team": "Soporte Técnico",
+                    "ai_assigned_team": get_team(ticket.ticket_type)
                 }
             orm_tickets.append(self._repo.to_orm(ticket, enrichment, provider_name=self._llm.name))
             imported += 1

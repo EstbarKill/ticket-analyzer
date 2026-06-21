@@ -81,7 +81,7 @@ export default function DashboardPage() {
             disabled={importing}
             className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {importing ? "Importando…" : "Reimportar tickets"}
+            {importing ? "Importando…" : "Importar tickets"}
           </button>
           <button
             onClick={handleClear}

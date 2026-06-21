@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-3.5-flash"
 
+    # --- IA ---
+    enable_llm_enrichment: bool = True
+    enable_kb_ingestion_with_llm: bool = True
+
     # --- Proveedor de embeddings (para la base de conocimiento) ---
     # "mock"   -> TF-IDF local (scikit-learn), sin internet ni costo.
     # "gemini" -> embeddings reales de la API de Gemini.
