@@ -76,6 +76,9 @@ class GeminiLLMProvider(LLMProvider):
             headers={"x-goog-api-key": self._api_key, "Content-Type": "application/json"},
             json=payload,
         )
+        if response.status_code >= 400:
+            logger.warning("Gemini devolvió %s en %s: %s", response.status_code, url, response.text[:500])
+         
         response.raise_for_status()
         data = response.json()
         return data["candidates"][0]["content"]["parts"][0]["text"]

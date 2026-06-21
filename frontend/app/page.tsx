@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getDashboardSummary, importTickets } from "@/lib/api";
+import { clearTickets, getDashboardSummary, importTickets } from "@/lib/api";
 import type { DashboardSummary } from "@/lib/types";
 import KpiCard from "@/components/KpiCard";
 import { CategoryBarChart, PriorityPieChart, TeamBarChart } from "@/components/Charts";
@@ -10,7 +10,27 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [clearing, setClearing] = useState(false);
+
+  async function handleClear() {
+    if (!window.confirm("¿Seguro que quieres borrar todos los tickets importados? Esta acción no se puede deshacer.")) {
+      return;
+    }
+    setClearing(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await clearTickets();
+      setSuccess("Todos los tickets fueron borrados.");
+      await loadSummary();
+    } catch (err) {
+      setError("No se pudo borrar los datos. Revisa que el backend esté corriendo.");
+    } finally {
+      setClearing(false);
+    }
+  }
 
   async function loadSummary() {
     setLoading(true);
@@ -34,8 +54,12 @@ export default function DashboardPage() {
   async function handleImport() {
     setImporting(true);
     setError(null);
+    setSuccess(null);
     try {
-      await importTickets();
+      const result = await importTickets();
+      setSuccess(
+        `Importación exitosa: ${result.imported_rows} tickets cargados (${result.duplicate_rows} duplicados omitidos, proveedor: ${result.llm_provider_used}).`
+      );
       await loadSummary();
     } catch (err) {
       setError("Falló la importación. Revisa que el backend esté corriendo y que el dataset exista.");
@@ -51,15 +75,28 @@ export default function DashboardPage() {
           <p className="font-mono text-xs uppercase tracking-widest text-muted">Vista general</p>
           <h2 className="mt-1 text-2xl font-semibold text-ink">Dashboard</h2>
         </div>
-        <button
-          onClick={handleImport}
-          disabled={importing}
-          className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-        >
-          {importing ? "Importando…" : "Reimportar tickets"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleImport}
+            disabled={importing}
+            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            {importing ? "Importando…" : "Reimportar tickets"}
+          </button>
+          <button
+            onClick={handleClear}
+            disabled={clearing}
+            className="rounded-md border border-accent/40 px-4 py-2 text-sm font-medium text-accent transition-opacity hover:bg-accent-soft disabled:opacity-50"
+          >
+            {clearing ? "Borrando…" : "Borrar datos"}
+          </button>
+        </div>
       </header>
-
+      {success && (
+        <div className="mb-5 rounded-md border border-priority-low/30 bg-priority-low/10 px-4 py-3 text-sm text-priority-low">
+          {success}
+        </div>
+      )}
       {error && (
         <div className="mb-5 rounded-md border border-accent/30 bg-accent-soft px-4 py-3 text-sm text-accent">
           {error}

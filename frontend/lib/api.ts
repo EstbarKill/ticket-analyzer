@@ -25,6 +25,10 @@ export function importTickets(): Promise<ImportResponse> {
   return request<ImportResponse>("/tickets/import", { method: "POST" });
 }
 
+export function clearTickets(): Promise<{ deleted: boolean }> {
+  return request<{ deleted: boolean }>("/tickets", { method: "DELETE" });
+}
+
 export function getTickets(
   filters: TicketFilters,
   limit = 50,

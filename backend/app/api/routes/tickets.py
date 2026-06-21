@@ -10,6 +10,11 @@ from app.services.providers.factory import get_llm_provider
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 
+@router.delete("")
+def delete_all_tickets(db: Session = Depends(get_db)):
+    repo = TicketRepository(db)
+    repo.clear_all()
+    return {"deleted": True}
 
 @router.post("/import", response_model=ImportResponse)
 def import_tickets(db: Session = Depends(get_db)):
